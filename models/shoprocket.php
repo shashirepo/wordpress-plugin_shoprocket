@@ -122,10 +122,8 @@ class shoprocket {
       add_action('wp_ajax_loadPromotionProducts', array('ShoprocketAjax', 'loadPromotionProducts'));
       add_action('wp_ajax_send_test_email', array('ShoprocketAjax', 'sendTestEmail'));
       add_action('wp_ajax_resend_email_from_log', array('ShoprocketAjax', 'resendEmailFromLog'));
-      add_action('wp_ajax_promotions_table', array('ShoprocketDataTables', 'promotionsTable'));
       add_action('wp_ajax_products_table', array('ShoprocketDataTables', 'productsTable'));
       add_action('wp_ajax_fetch_products', array('ShoprocketProduct', 'Fetchproducts'));
-      add_action('wp_ajax_orders_table', array('ShoprocketDataTables', 'ordersTable'));
       add_action('wp_ajax_print_view', array('ShoprocketAjax', 'ajaxReceipt'));
       add_action('wp_ajax_view_email', array('ShoprocketAjax', 'viewLoggedEmail'));
       add_action('wp_ajax_dashboard_products_table', array('ShoprocketDataTables', 'dashboardProductsTable'));
