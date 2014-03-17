@@ -1,0 +1,1 @@
+<a href="<?php echo $data['url']; ?>&amp;product_url=<?php echo urlencode(ShoprocketCommon::getCurrentPageUrl()); ?>" class="ShoprocketAddToCart <?php echo $data['class']; ?>"><?php echo $data['text']; ?></a>
