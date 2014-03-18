@@ -31,22 +31,35 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
       $count++;
       $percent  = (floatval($id) / floatval($productcount - 1)) * 100;
       $products = ShoprocketCommon::getTableName('products');
+      $productGallery = ShoprocketCommon::getTableName('productgallery');
+      $productsmeta = ShoprocketCommon::getTableName('productsmeta');
        if($count == $batchsize) {
             printf("{\"last\": \"%s\", \"end\": false, \"percent\": \"%.2f\"}", $last, $percent);
             exit();
       }
-      try {
       $sql = "INSERT IGNORE into $products (`id`, `name`, `price`, `currency`, `quantity`, `dateadded`, `companyid`, `externalid`, `notes`, `views`,
        `slug`, `weight`, `image strapline`, `deposit`, `video`, `code`, `description`, `billingnotes`, `showit`, `historyid`) VALUES (%d,%s,%d,%s,%d,%s,%s,%s,
        %s,%d,%s,%s,%s,%d,%s,%s,%s,%s,%d,%d)";
-        $stmt = $wpdb->prepare($sql, $productArray[$id]['id'], $productArray[$id]['name'], $productArray[$id]['price'], $productArray[$id]['currency'], $productArray[$id]['quantity'], $productArray[$id]['dateadded'], $productArray[$id]['companyid'],
-        $productArray[$id]['externalid'], $productArray[$id]['notes'], $productArray[$id]['views'], $productArray[$id]['slug'], $productArray[$id]['weight'], $productArray[$id]['image'], $productArray[$id]['deposit'], $productArray[$id]['video'], $productArray[$id]['code'],
-        $productArray[$id]['description'], $productArray[$id]['billingnotes'], $productArray[$id]['showit'], $productArray[$id]['historyid']);
+        $stmt = $wpdb->prepare($sql, $productArray[$id]['product']['id'], $productArray[$id]['product']['name'], $productArray[$id]['product']['price'], $productArray[$id]['product']['currency'], $productArray[$id]['product']['quantity'], $productArray[$id]['product']['dateadded'], $productArray[$id]['product']['companyid'],
+        $productArray[$id]['product']['externalid'], $productArray[$id]['product']['notes'], $productArray[$id]['product']['views'], $productArray[$id]['product']['slug'], $productArray[$id]['product']['weight'], $productArray[$id]['product']['image'], $productArray[$id]['product']['deposit'], $productArray[$id]['product']['video'], $productArray[$id]['product']['code'],
+        $productArray[$id]['product']['description'], $productArray[$id]['product']['billingnotes'], $productArray[$id]['product']['showit'], $productArray[$id]['product']['historyid']);
         $wpdb->query($stmt);
+        if($productArray[$id]['images']!='' || $productArray[$id]['images']!= null) {
+          foreach ($productArray[$id]['images'] as $key => $productgallery) {
+          $imagessql = "INSERT IGNORE INTO $productGallery (`id`, `productid`, `name`, `baseurl`, `cdnurl`, `filepickerurl`, `showit`, `width`, `height`, `fit`, `filetype`, `hero`)
+           VALUES (%d, %d, %s, %s, %d, %s, %d, %s, %s, %s, %s, %d)";
+           $stmt  = $wpdb->prepare($imagessql, $productgallery['id'], $productgallery['productid'], $productgallery['name'], $productgallery['baseurl'], $productgallery['cdnurl'], $productgallery['filepickerurl'], 
+            $productgallery['showit'], $productgallery['width'], $productgallery['height'], $productgallery['fit'],
+            $productgallery['filetype'], $productgallery['hero']);
+           $wpdb->query($stmt);
+        }
       }
-      catch(Exception $e){
-         printf("{\"last\": \"%s\", \"end\": true, \"percent\": \"%.2f\"}", $last, $percent);
-           exit();
+        if($productArray[$id]['meta']!= '' || $productArray[$id]['meta']!= null){
+           foreach ($productArray[$id]['meta'] as $key => $productsmeta) {
+          $metasql = "INSERT IGNORE INTO $productsmeta (`id`, `productid`, `keyword`) VALUES (%d, %s, %s)";
+          $stmt =  $wpdb->prepare($metasql, $productsmeta['id'], $productsmeta['productid'], $productsmeta['keyword']);
+          $wpdb->query($stmt);
+        }
       }
         if($last == $productcount-1) {
            printf("{\"last\": \"%s\", \"end\": true, \"percent\": \"%.2f\"}", $last, $percent);
@@ -60,7 +73,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
 
     $rest = new Pest(SR_REST);
     try {
-     $response = $rest->get('/productlist?='.ShoprocketSetting::getValue('companyid'));
+     $response = $rest->get('/productlist?companyid='.ShoprocketSetting::getValue('companyid'));
     }
     catch(Pest_Unauthorized $e) {
         header('Bad Request', true, 400);
@@ -69,14 +82,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
 
       $response = json_decode($response, true);
 
-      $product = array();
-
-      foreach ($response as $key => $value) {
-            $product[$key] = $response[$key][$table];
-      }
-
-      return array_values($product);
-
+      return $response;
 
   }
   
@@ -95,9 +101,9 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     return $id;
   }
   
-  public function loadByItemNumber($itemNumber) {
-    $itemNumber = esc_sql($itemNumber);
-    $sql = "SELECT id from $this->_tableName where slug = '$itemNumber'";
+  public function loadByItemNumber($slug) {
+    $itemNumber = esc_sql($slug);
+    $sql = "SELECT id from $this->_tableName where slug = '$slug'";
     $id = $this->_db->get_var($sql);
     $this->load($id);
     return $this->id;
@@ -127,103 +133,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     $sql = "DELETE from $downloadsTable where duid='$duid' AND order_item_id='$order_item_id'";
     $this->_db->query($sql);
   }
-  
-  /**
-   * Return the quantity of Sync in stock for the product with the given id and variation description.
-   * 
-   * The variation descriptins is a ~ separated string of options. The price info may be in the variation string but
-   * will be stripped out before calculating the iKey.
-   * 
-   * @param int $id
-   * @param string $variation
-   * @return int Quantity of Sync in stock
-   */
-  public static function checkSyncLevelForProduct($id, $variation='') {
-    // Build varation ikey string component
-    if(!empty($variation)) {
-      $variation = self::scrubVaritationsForIkey($variation);
-    }
-    
-    $p = new ShoprocketProduct($id);
-    $ikey = $p->getSyncKey($variation);
-    $count = $p->getSyncCount($ikey);
-    //ShoprocketCommon::log("Check Sync Level For Product: $ikey = $count");
-    return $count;
-  }
-  
-  public static function decrementSync($id, $variation='', $qty=1) {
-    ShoprocketCommon::log("Decrementing Sync: line " . __LINE__);
-    // Build varation ikey string component
-    if(!empty($variation)) {
-      $variation = self::scrubVaritationsForIkey(str_replace(', ', '~', $variation));
-    }
-    
-    $p = new ShoprocketProduct($id);
-    $is_gravity_form = false;
-    $valid_options = array();
-    if($p->isGravityProduct()) {
-      $valid_options = ShoprocketGravityReader::getFormValuesArray($p->gravity_form_id);
-      $is_gravity_form = true;
-    }
-    else {
-      if(strlen($p->options_1) > 1) {
-        $valid_options[] = explode(',', str_replace(' ', '', $p->options_1));
-      }
-      if(strlen($p->options_2) > 1) {
-        $valid_options[] = explode(',', str_replace(' ', '', $p->options_2));
-      }
-    }
-    $newVariation = '';
-    $options = explode(',', $variation);
-    foreach($options as $option) {
-      if($p->validate_option($valid_options, $option, $is_gravity_form)) {
-        $newVariation .= $option;
-      }
-    }
-    $ikey = $p->getSyncKey($newVariation);
-    $count = $p->getSyncCount($ikey);
-    $newCount = $count - $qty;
-    if($newCount < 0) {
-      $newCount = 0;
-    }
-    $p->setSyncLevel($ikey, $newCount);
-  }
-  
-  public static function increaseSync($id, $variation='', $qty=1) {
-    ShoprocketCommon::log("Increasing Sync: line " . __LINE__);
-    // Build varation ikey string component
-    if(!empty($variation)) {
-      $variation = self::scrubVaritationsForIkey(str_replace(', ', '~', $variation));
-    }
-    
-    $p = new ShoprocketProduct($id);
-    $is_gravity_form = false;
-    $valid_options = array();
-    if($p->isGravityProduct()) {
-      $valid_options = ShoprocketGravityReader::getFormValuesArray($p->gravity_form_id);
-      $is_gravity_form = true;
-    }
-    else {
-      if(strlen($p->options_1) > 1) {
-        $valid_options[] = explode(',', str_replace(' ', '', $p->options_1));
-      }
-      if(strlen($p->options_2) > 1) {
-        $valid_options[] = explode(',', str_replace(' ', '', $p->options_2));
-      }
-    }
-    $newVariation = '';
-    $options = explode(',', $variation);
-    foreach($options as $option) {
-      if($p->validate_option($valid_options, $option, $is_gravity_form)) {
-        $newVariation .= $option;
-      }
-    }
-    $ikey = $p->getSyncKey($newVariation);
-    $count = $p->getSyncCount($ikey);
-    $newCount = $count + $qty;
-    $p->setSyncLevel($ikey, $newCount);
-  }
-  
+
   protected function validate_option(&$valid_options, $choice, $is_gravity_form=false) {
     $found = false;
     
@@ -268,27 +178,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     return $variation;
   }
   
-  public static function confirmSync($id, $variation='', $desiredQty=1) {
-    ShoprocketCommon::log('[' . basename(__FILE__) . ' - line ' . __LINE__ . "] Confirming Sync:\n$id | $variation | $desiredQty");
-    $ok = true;
-    $setting = new ShoprocketSetting();
-    $trackSync = ShoprocketSetting::getValue('track_Sync');
-    if($trackSync == 1) {
-      $p = new ShoprocketProduct($id);
-      $variation = self::scrubVaritationsForIkey($variation);
-      $ikey = $p->getSyncKey($variation);
-      if($p->isSyncTracked($ikey)) {
-        $qty = self::checkSyncLevelForProduct($id, $variation);
-        if($qty < $desiredQty) {
-          $ok = false;
-        }
-      }
-      else {
-        ShoprocketCommon::log("Sync not tracked: $ikey");
-      }
-    }
-    return $ok;
-  }
+
   
   /**
    * Return an array of option names having stripped off any price variations
@@ -336,130 +226,6 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
   }
   
   /**
-   * Return the primary key used in the ikey table. 
-   * This is the product name + variation name without price difference information in all lowercase with no spaces.
-   * Only letters and numbers are used.
-   * 
-   * @param string The variation name without the price difference
-   * @return string
-   */
-  public function getSyncKey($variationName='') {
-    $key = strtolower($this->id . $this->name . $variationName);
-    $key = str_replace(' ', '', $key);
-    $key = preg_replace('/\W/', '', $key);
-    return $key;
-  }
-  
-  public function insertSyncData() {
-    $keys = array();
-    $combos = $this->getAllOptionCombinations();
-    if(count($combos)) {
-      foreach($combos as $c) {
-        $key = $this->getSyncKey($c);
-        $keys[] = $key;
-      }
-    }
-    else {
-      // There are no product variations
-      $key = $this->getSyncKey();
-      $keys[] = $key;
-    }
-    
-    foreach($keys as $key) {
-      $Sync = ShoprocketCommon::getTableName('Sync');
-      
-      // Only insert new rows
-      $sql = "SELECT ikey from $Sync where ikey = %s";
-      $stmt = $this->_db->prepare($sql, $key);
-      $foundKey = $this->_db->get_var($stmt);
-      if(!$foundKey) {
-        $sql = "INSERT into $Sync (ikey, track, product_id, quantity) VALUES (%s,%d,%d,%d)";
-        $stmt = $this->_db->prepare($sql, $key, 0, $this->id, 0);
-        $this->_db->query($stmt);
-      }
-      
-    }
-    
-    // Delete obsolete Sync rows
-    $keyList = implode("','", $keys);
-    $sql = "DELETE from $Sync where product_id=$this->id and ikey not in ('$keyList')";
-    $this->_db->query($sql);
-  }
-  
-  public function updateSyncFromPost($request) {
-    global $wpdb;
-    $Sync = ShoprocketCommon::getTableName('Sync');
-    foreach($request as $key => $value) {
-      if (substr($key, 0, 4) == "qty_") {
-        $ikey = substr($key, 4);
-        $wpdb->query("UPDATE $Sync SET quantity='$value' WHERE ikey='$ikey'");
-      }
-      if (substr($key, 0, 6) == "track_") {
-        $ikey = substr($key, 6);
-        $wpdb->query("UPDATE $Sync SET track='$value' WHERE ikey='$ikey'");
-      }
-    }
-  }
-  
-  public function updateSyncFromPost2($ikey) {
-    $Sync = ShoprocketCommon::getTableName('Sync');
-    $track = ShoprocketCommon::postVal("track_$ikey");
-    $qty = ShoprocketCommon::postVal("qty_$ikey");
-    $sql = "UPDATE $Sync set track=%d, quantity=%d where ikey=%s";
-    $sql = $this->_db->prepare($sql, $track, $qty, $ikey);
-    $this->_db->query($sql);
-  }
-  
-  public function setSyncLevel($ikey, $qty) {
-    $Sync = ShoprocketCommon::getTableName('Sync');
-    $sql = "UPDATE $Sync set quantity=%d where ikey=%s";
-    $sql = $this->_db->prepare($sql, $qty, $ikey);
-    $this->_db->query($sql);
-  }
-  
-  public function getSyncCount($ikey) {
-    $Sync = ShoprocketCommon::getTableName('Sync');
-    $sql = "SELECT quantity from $Sync where ikey=%s";
-    $sql = $this->_db->prepare($sql, $ikey);
-    $count = $this->_db->get_var($sql);
-    return $count;
-  }
-  
-  public function getSyncNamesAndCounts() {
-    $counts = array();
-    $ikeyList = $this->getSyncKeyList();
-    foreach($ikeyList as $comboName => $ikey) {
-      if($this->isSyncTracked($ikey)) {
-        $counts[$comboName] = $this->getSyncCount($ikey);
-      }
-      else {
-        $counts[$comboName] = 'in stock';
-      }
-    }
-    return $counts;
-  }
-  
-  /**
-   * Return an array of all Sync keys for this product
-   */
-  public function getSyncKeyList() {
-    $ikeyList = array();
-    $combos = $this->getAllOptionCombinations();
-    if(count($combos)) {
-      foreach($combos as $c) {
-        $k = $this->getSyncKey($c);
-        $n = $this->name . ': ' . $c;
-        $ikeyList[$n] = $k;
-      }
-    }
-    else {
-      $ikeyList[$this->name] = $this->getSyncKey();
-    }
-    
-    return $ikeyList;
-  }
-  
-  /**
    * Return true if this product is available in any variation for purchase.
    * 
    * If Sync is not tracked or if any variations of the product are in stock, true is returned.
@@ -493,23 +259,6 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     return $isAvailable;
   }
   
-  public function isSyncTracked($ikey) {
-    $Sync = ShoprocketCommon::getTableName('Sync');
-    $sql = "SELECT track from $Sync where ikey=%s";
-    $sql = $this->_db->prepare($sql, $ikey);
-    $track = $this->_db->get_var($sql);
-    //ShoprocketCommon::log("Is Sync tracked query: $sql");
-    $isTracked = ($track == 1) ? true : false;
-    return $isTracked;
-  }
-  
-  public function pruneSync(array $ikeyList) {
-    $Sync = ShoprocketCommon::getTableName('Sync');
-    $list = "'" . implode("','", $ikeyList) . "'";
-    $sql = "DELETE from $Sync where ikey not in ($list)";
-    $this->_db->query($sql);
-    //ShoprocketCommon::log("Prune Sync: $sql");
-  }
   
   private function _buildOptionList($optNumber) {
     $select = '';
@@ -535,84 +284,6 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     }
     return $isDigital;
   }
-  
-  public function isShipped() {
-    $isShipped = false;
-    if($this->shipped > 0) {
-      $isShipped = true;
-    }
-    return $isShipped;
-  }
-
-  /**
-   * Return the shipping rate for this product for the given shipping method
-   */
-  public function getShippingPrice($methodId) {
-    $methodId = (isset($methodId) && is_numeric($methodId)) ? $methodId : 0;
-    // Look to see if there is a specific setting for this product and the given shipping method
-    $ratesTable = ShoprocketCommon::getTableName('shipping_rates');
-    $sql = "SELECT shipping_rate from $ratesTable where product_id = " . $this->id . " and shipping_method_id = $methodId";
-    $rate = $this->_db->get_var($sql);
-    if($rate === NULL) {
-      // If no specific rate is set, return the default rate for the given shipping method
-      $shippingMethods = ShoprocketCommon::getTableName('shipping_methods');
-      $sql = "SELECT default_rate from $shippingMethods where id=$methodId";
-      $rate = $this->_db->get_var($sql);
-    }
-    return $rate;
-  }
-  
-  public function getBundleShippingPrice($methodId) {
-    $methodId = (isset($methodId) && is_numeric($methodId)) ? $methodId : 0;
-    $ratesTable = ShoprocketCommon::getTableName('shipping_rates');
-    $shippingMethods = ShoprocketCommon::getTableName('shipping_methods');
-    
-    // Look to see if there is a specific bundle rate for this product and the given shipping method
-    $sql = "SELECT shipping_bundle_rate from $ratesTable where product_id = " . $this->id . " and shipping_method_id = $methodId";
-    $rate = $this->_db->get_var($sql);
-    if($rate === NULL) {
-      // If no specific rate is set, return the default bundle rate for the given shipping method
-      $sql = "SELECT default_bundle_rate from $shippingMethods where id=$methodId";
-      $rate = $this->_db->get_var($sql);
-      return $rate;
-    }
-    return $rate;
-  }
-  
-  public function isMembershipProduct() {
-    $isMembershipProduct = false;
-    if($this->isMembershipProduct == 1) {
-      $isMembershipProduct = true;
-    }
-    return $isMembershipProduct;
-  }
-  
-  public function isSubscription() {
-    $isSub = false;
-    if(FALSE) {
-      if($this->isSpreedlySubscription() || $this->isPayPalSubscription()) {
-        $isSub = true;
-      }
-    }
-    return $isSub;
-  }
-  
-  public function isSpreedlySubscription() {
-    $isSub = false;
-    if(FALSE && (is_numeric($this->spreedlySubscriptionId) && $this->spreedlySubscriptionId > 0)) {
-      $isSub = true;
-    }
-    return $isSub;
-  }
-  
-  public function isPayPalSubscription() {
-    $isPayPalSubscription = false;
-    if(FALSE && $this->isPaypalSubscription == 1) {
-      $isPayPalSubscription = true;
-    }
-    return $isPayPalSubscription;
-  }
-  
   public static function getProductIdByGravityFormId($id) {
     global $wpdb;
     $products = ShoprocketCommon::getTableName('products');
@@ -622,59 +293,20 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     return $productId;
   }
   
-  public static function getNonSubscriptionProducts($where=null, $order=null, $limit=null) {
+  public static function getProducts($where=null, $order=null, $limit=null) {
     global $wpdb;
-    $subscriptions = array();
+    $products = array();
     $product = new ShoprocketProduct();
     $products = $product->getModels($where, $order, $limit);
     foreach($products as $p) {
-      if(!$p->isSubscription()) {
-        $subscriptions[] = $p;
+      if($p->showit) {
+        $products[] = $p;
       }
     }
-    return $subscriptions;
+    return $products;
   }
   
-  public static function getSubscriptionProducts($where=null, $order=null, $limit=null) {
-    global $wpdb;
-    $subscriptions = array();
-    $product = new ShoprocketProduct();
-    $products = $product->getModels($where, $order, $limit);
-    foreach($products as $p) {
-      if($p->isSubscription()) {
-        $subscriptions[] = $p;
-      }
-    }
-    return $subscriptions;
-  }
-  
-  public static function getSpreedlyProducts($where=null, $order=null, $limit=null) {
-    global $wpdb;
-    $subscriptions = array();
-    $product = new ShoprocketProduct();
-    $where = $where == null ? "where showit = 1" : $where . " AND showit = 1";
-    $products = $product->getModels($where, $order, $limit);
-    foreach($products as $p) {
-      if($p->isSpreedlySubscription()) {
-        $subscriptions[] = $p;
-      }
-    }
-    return $subscriptions;
-  }
-  
-  public static function getMembershipProducts() {
-    global $wpdb;
-    $memberships = array();
-    $product = new ShoprocketProduct();
-    $products = $product->getModels('where is_membership_product=1');
-    foreach($products as $p) {
-      if($p->isMembershipProduct()) {
-        $memberships[] = $p;
-      }
-    }
-    return $memberships;
-  }
-  
+
   /**
    * Return the pricing for PayPal or Spreedly subscription plan.
    * The PayPal pricing takes precedence over the Spreedly pricing, 
@@ -939,49 +571,6 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
   }
   
   /**
-   * Return the price to charge at checkout.
-   * For subscriptions this may also include the first recurring payment if the recurring start number is 0. 
-   * This function will return the exact product price if:
-   *  - The product is not a subscription product
-   *  - The product is a subscription with a free trial period
-   */
-  public function getCheckoutPrice() {
-    $price = $this->price;
-    if($this->isSpreedlySubscription()) {
-      if(!$this->hasFreeTrial()) {
-        $subscription = new SpreedlySubscription();
-        $subscription->load($this->spreedlySubscriptionId);
-        $price += $subscription->price;
-      }
-      
-      if(ShoprocketCommon::isLoggedIn()) {
-        $proRateAmount = ShoprocketSession::get('ShoprocketProRateAmount');
-        if(!$proRateAmount) {
-          $proRateData = $this->getProRateInfo();
-          $proRateAmount = $proRateData->amount;
-        }
-        $price = ($proRateAmount > $price) ? 0 : $price - $proRateAmount;
-        ShoprocketCommon::log('[' . basename(__FILE__) . ' - line ' . __LINE__ . "] Calculated ProRate price: " . $price);
-      }
-      
-    }
-    elseif($this->isPayPalSubscription()) {
-      $price = $this->setupFee;
-      $plan = $this->getPayPalSubscription();
-      if($plan->startRecurringNumber == 0) {
-        if($plan->offerTrial) {
-          $price += $plan->trialPrice;
-        }
-        else {
-          $price += $plan->price;
-        }
-      }
-    }
-    
-    return $price;
-  }
-  
-  /**
    * Return a description of the subscription rate such as $10 / 1 month
    * 
    * @return string
@@ -1054,70 +643,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     return $priceDescription;
   }
   
-  /**
-   * Return information about pro-rated credit or false if there is none.
-   * 
-   * Returns a standard object:
-   *   $data->description = The description of the credit
-   *   $data->amount = The monetary amount of the credit
-   *   $data->money = The formated monetary amount of the credit
-   * 
-   * return object or false
-   */
-  public function getProRateInfo() {
-    $data = false;
-    $proRateAmount = 0;
-    if($this->isSpreedlySubscription()) {
-      if(ShoprocketCommon::isLoggedIn() && ShoprocketSession::get('ShoprocketCart')) {
-        if($subscriptionId = ShoprocketSession::get('ShoprocketCart')->getSpreedlySubscriptionId()) {
-          try {
-            $invoiceData = array(
-              'subscription-plan-id' => $subscriptionId,
-              'subscriber' => array(
-                'customer-id' => ShoprocketSession::get('ShoprocketAccountId')
-              )
-            );
-            $invoice = new SpreedlyInvoice();
-            $invoice->createFromArray($invoiceData);
-            $this->_creditAmount = abs((float)$invoice->invoiceData->{'line-items'}->{'line-item'}[1]->amount);
-
-            $data = new stdClass();
-            $data->description = $invoice->invoiceData->{'line-items'}->{'line-item'}[1]->description;
-            $data->amount = $this->_creditAmount;
-            $data->money = ShoprocketCommon::currency($this->_creditAmount);
-            
-            if($data->amount > 0) {
-              $proRateAmount = $data->amount;
-            }
-
-            ShoprocketCommon::log('[' . basename(__FILE__) . ' - line ' . __LINE__ . "] Spreedly Invoice: " . print_r($invoice->invoiceData, true));
-          }
-          catch(SpreedlyException $e) {
-            ShoprocketCommon::log('[' . basename(__FILE__) . ' - line ' . __LINE__ . "] Unable to locate spreedly customer: " . ShoprocketSession::get('ShoprocketAccountId'));
-          }
-        }
-      }
-    }
-    ShoprocketSession::set('ShoprocketProRateAmount', $proRateAmount, true);
-    return $data;
-  }
-  
-  /**
-   * Return the ShoprocketPayPalSubscription associated with this products paypal subscription id.
-   * If no paypal subscription is attached to this product, return false.
-   * 
-   * @return ShoprocketPayPalSubscription
-   */
-  public function getPayPalSubscription() {
-    $sub = false;
-    if($this->isPayPalSubscription()) {
-      if(class_exists('ShoprocketPayPalSubscription')) {
-        $sub = new ShoprocketPayPalSubscription($this->id);
-      }
-    }
-    return $sub;
-  }
-  
+ 
   /**
    * Override base class save method by validating the data before and after saving.
    * Return the product id of the saved product.

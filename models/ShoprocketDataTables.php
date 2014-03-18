@@ -95,7 +95,7 @@ Class ShoprocketDataTables {
   	
   	$data = array();
   	$product = new ShoprocketProduct();
-  	$products = $product->getNonSubscriptionProducts($where, $order, $limit);
+  	$products = $product->getProducts($where, $order, $limit);
   	foreach($products as $p) {
   	  $gfTitles = self::gfData();
   	  if($p->gravityFormId > 0 && isset($gfTitles) && isset($gfTitles[$p->gravityFormId])) {

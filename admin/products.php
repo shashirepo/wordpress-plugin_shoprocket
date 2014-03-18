@@ -52,8 +52,8 @@ elseif(isset($_GET['task']) && $_GET['task'] == 'xdownload' && isset($_GET['id']
   $product->download_path = '';
   $product->save();
 }
-$data['products'] = $product->getNonSubscriptionProducts('where id>0', null, '1');
-$data['spreedly'] = $product->getSpreedlyProducts(null, null, '1');
+$data['products'] = $product->getproducts('where id>0', null, '1');
+//$data['spreedly'] = $product->getSpreedlyProducts(null, null, '1');
 ?>
 
 <?php if($errorMessage): ?>

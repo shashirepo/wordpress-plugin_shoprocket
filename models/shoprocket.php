@@ -146,13 +146,7 @@ class shoprocket {
     }
     else {
       $this->initShortcodes();
-      $this->initCart();
-      $this->checkIPN();
-       $order = new ShoprocketOrder();
       add_action('wp_head', array('ShoprocketCommon', 'displayVersionInfo'));
-      add_action('template_redirect', array($this, 'dontCacheMeBro'));
-      add_action('shutdown', array('ShoprocketSession', 'touch'));
-      add_action('wp_footer', array($order, 'updateViewed'));
   
     }
     
@@ -400,7 +394,6 @@ class shoprocket {
     require_once(SHOPROCKET_PATH . "/models/ShoprocketSessionNative.php");
     require_once(SHOPROCKET_PATH . "/models/ShoprocketSetting.php");
     require_once(SHOPROCKET_PATH . "/models/ShoprocketAdmin.php");
-    require_once(SHOPROCKET_PATH . "/models/ShoprocketOrder.php");
     require_once(SHOPROCKET_PATH . "/models/ShoprocketAjax.php");
     require_once(SHOPROCKET_PATH . "/models/ShoprocketLog.php");
     require_once(SHOPROCKET_PATH . "/models/ShoprocketProduct.php");
