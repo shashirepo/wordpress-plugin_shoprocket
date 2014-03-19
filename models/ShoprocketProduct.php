@@ -22,6 +22,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
 
       $productArray = self::getSRJSON();
       $productcount = count($productArray);
+      var_dump($productArray).die();
       $batchsize = 5;
       $count = 0;
       $start = $_GET['prev'];
@@ -284,13 +285,13 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     }
     return $isDigital;
   }
-  public static function getProductIdByGravityFormId($id) {
+  public static function getProductImageURL($id) {
     global $wpdb;
-    $products = ShoprocketCommon::getTableName('products');
-    $sql = "SELECT id from $products where gravity_form_id = %d";
+    $productgallery = ShoprocketCommon::getTableName('productgallery');
+    $sql = "SELECT baseurl from $productgallery where id = %d";
     $query = $wpdb->prepare($sql, $id);
-    $productId = $wpdb->get_var($query);
-    return $productId;
+    $productURL = $wpdb->get_var($query);
+    return $productURL;
   }
   
   public static function getProducts($where=null, $order=null, $limit=null) {
@@ -305,6 +306,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     }
     return $products;
   }
+
   
 
   /**
