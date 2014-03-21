@@ -22,8 +22,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
 
       $productArray = self::getSRJSON();
       $productcount = count($productArray);
-      var_dump($productArray).die();
-      $batchsize = 5;
+      $batchsize = 10;
       $count = 0;
       $start = $_GET['prev'];
 
@@ -48,7 +47,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
         if($productArray[$id]['images']!='' || $productArray[$id]['images']!= null) {
           foreach ($productArray[$id]['images'] as $key => $productgallery) {
           $imagessql = "INSERT IGNORE INTO $productGallery (`id`, `productid`, `name`, `baseurl`, `cdnurl`, `filepickerurl`, `showit`, `width`, `height`, `fit`, `filetype`, `hero`)
-           VALUES (%d, %d, %s, %s, %d, %s, %d, %s, %s, %s, %s, %d)";
+           VALUES (%d, %d, %s, %s, %s, %s, %d, %s, %s, %s, %s, %d)";
            $stmt  = $wpdb->prepare($imagessql, $productgallery['id'], $productgallery['productid'], $productgallery['name'], $productgallery['baseurl'], $productgallery['cdnurl'], $productgallery['filepickerurl'], 
             $productgallery['showit'], $productgallery['width'], $productgallery['height'], $productgallery['fit'],
             $productgallery['filetype'], $productgallery['hero']);
@@ -288,7 +287,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
   public static function getProductImageURL($id) {
     global $wpdb;
     $productgallery = ShoprocketCommon::getTableName('productgallery');
-    $sql = "SELECT baseurl from $productgallery where id = %d";
+    $sql = "SELECT cdnurl from $productgallery where id = %d";
     $query = $wpdb->prepare($sql, $id);
     $productURL = $wpdb->get_var($query);
     return $productURL;

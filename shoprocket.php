@@ -71,11 +71,7 @@ if(!class_exists('shoprocket')) {
   
   // Register activation hook to install Shoprocket database tables and system code
   register_activation_hook(SHOPROCKET_PATH . '/shoprocket.php', array($shoprocket, 'install'));
-  
-  if(FALSE) {
-    register_activation_hook(SHOPROCKET_PATH . '/shoprocket.php', array($shoprocket, 'scheduledEvents'));
-  }
-  
+
   // Check for WordPress 3.1 auto-upgrades
   if(function_exists('register_update_hook')) {
     register_update_hook(SHOPROCKET_PATH . '/shoprocket.php', array($shoprocket, 'install'));
@@ -128,18 +124,6 @@ function ShoprocketSettingsLink($links, $file) {
  * because it can potentially prefetch a page with a [clearcart] shortcode
  */
 remove_action('wp_head', 'adjacent_posts_rel_link_wp_head');
-
-if(FALSE) {
-  register_deactivation_hook(SHOPROCKET_PATH . '/shoprocket.php', 'deactivation');
-}
-function shoprocket_deactivation() {
-  require_once(SHOPROCKET_PATH. "/pro/models/ShoprocketMembershipReminders.php");
-  require_once(SHOPROCKET_PATH. "/pro/models/ShoprocketGravityReader.php");
-  wp_clear_scheduled_hook('daily_subscription_reminder_emails');
-  wp_clear_scheduled_hook('daily_followup_emails');
-  wp_clear_scheduled_hook('daily_gravity_forms_entry_removal');
-  wp_clear_scheduled_hook('daily_prune_pending_paypal_orders');
-}
 
 function shoprocket_plugin_version() {
   if(!function_exists('get_plugin_data')) {
