@@ -81,7 +81,7 @@ if($cartImgPath) {
               </div>
               <div class="onethree-right">
                 <!-- Title -->  
-                 <a href="echo $item->slug"><?php  echo $item->name ?></a>
+                 <a href="<?php echo $item->slug ?>"><?php  echo $item->name ?></a>
                 <!-- Para -->
                 <p><?php  echo $item->strapline ?></p>
                 <!-- Price -->
