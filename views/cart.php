@@ -80,12 +80,12 @@ if($cartImgPath) {
                 <a href=""><img src="<?php  echo ShoprocketProduct::getProductImageURL($item->id) ?>" alt=""/></a>
               </div>
               <div class="onethree-right">
-                <!-- Title -->  <strong>Price:</strong>
+                <!-- Title -->  
                  <a href="echo $item->slug"><?php  echo $item->name ?></a>
                 <!-- Para -->
                 <p><?php  echo $item->strapline ?></p>
                 <!-- Price -->
-                <p class="bold"><?php echo $item->price ?></p>
+                <p class="bold"><strong>Price:</strong><?php echo $item->price ?></p>
               </div>
               <div class="clearfix"></div>
             </div>
