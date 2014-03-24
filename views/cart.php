@@ -73,7 +73,7 @@ if($cartImgPath) {
      <li>
 <div class="sr-block" sr-meta="" sr-show-max="5">
             <!-- Item #1 -->
-            <div class="sitem hide">
+            <div class="sitem">
               <!-- Don't forget the class "onethree-left" and "onethree-right" -->
               <div class="onethree-left">
                 <!-- Image -->
