@@ -97,17 +97,11 @@ Class ShoprocketDataTables {
   	$product = new ShoprocketProduct();
   	$products = $product->getProducts($where, $order, $limit);
   	foreach($products as $p) {
-  	  $gfTitles = self::gfData();
-  	  if($p->gravityFormId > 0 && isset($gfTitles) && isset($gfTitles[$p->gravityFormId])) {
-         $gfTitles = '<br/><em>Linked To Gravity Form: ' . $gfTitles[$p->gravityFormId] . '</em>';
-      }
-      else {
-        $gfTitles = '';
-      }
+
   	  $data[] = array(
   	    $p->id,
   	    $p->slug,
-  	    $p->name . $gfTitles,
+  	    $p->name,
   	    ShoprocketCommon::currency($p->price),
   	    $p->taxable? ' Yes' : 'No',
   	    $p->shipped? ' Yes' : 'No'
@@ -122,21 +116,7 @@ Class ShoprocketDataTables {
   	echo json_encode($array);
   	die();
   }
-  public static function gfData() {
-    global $wpdb;
-    $gfTitles = array();
-    if(FALSE && class_exists('RGFormsModel')) {
-      require_once(SHOPROCKET_PATH . "/pro/models/ShoprocketGravityReader.php");
-      $forms = ShoprocketCommon::getTableName('rg_form', '');
-      $sql = "SELECT id, title from $forms where is_active=1 order by title";
-      $results = $wpdb->get_results($sql);
-      foreach($results as $r) {
-        $gfTitles[$r->id] = $r->title;
-      }
-    }
-    return $gfTitles;
-  }   
-  
+
   public static function totalRows($indexColumn, $tableName, $where=null) {
     global $wpdb;
     $sql = "

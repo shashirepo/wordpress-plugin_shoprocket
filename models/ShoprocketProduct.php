@@ -16,10 +16,8 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     return $opt1 . $opt2;
   }
 
-  public function Fetchproducts() {
+  public static function Fetchproducts() {
     global $wpdb;
-
-
       $productArray = self::getSRJSON();
       $productcount = count($productArray);
       $batchsize = 10;
@@ -32,7 +30,7 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
       $percent  = (floatval($id) / floatval($productcount - 1)) * 100;
       $products = ShoprocketCommon::getTableName('products');
       $productGallery = ShoprocketCommon::getTableName('productgallery');
-      $productsmeta = ShoprocketCommon::getTableName('productsmeta');
+      $metatable = ShoprocketCommon::getTableName('productsmeta');
        if($count == $batchsize) {
             printf("{\"last\": \"%s\", \"end\": false, \"percent\": \"%.2f\"}", $last, $percent);
             exit();
@@ -54,13 +52,14 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
            $wpdb->query($stmt);
         }
       }
-        if($productArray[$id]['meta']!= '' || $productArray[$id]['meta']!= null){
+    /*    if($productArray[$id]['meta']!= '' || $productArray[$id]['meta']!= null){
+          var_dump($productArray[$id]['meta']).die();
            foreach ($productArray[$id]['meta'] as $key => $productsmeta) {
-          $metasql = "INSERT IGNORE INTO $productsmeta (`id`, `productid`, `keyword`) VALUES (%d, %s, %s)";
+          $metasql = "INSERT IGNORE INTO $metatable (`id`, `productid`, `keyword`) VALUES (%d, %s, %s)";
           $stmt =  $wpdb->prepare($metasql, $productsmeta['id'], $productsmeta['productid'], $productsmeta['keyword']);
           $wpdb->query($stmt);
         }
-      }
+      }  */
         if($last == $productcount-1) {
            printf("{\"last\": \"%s\", \"end\": true, \"percent\": \"%.2f\"}", $last, $percent);
            exit();
@@ -68,8 +67,24 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
     }
   }
 
+  public static function removeProducts() {
 
-  public function getSRJSON($table = 'product') {
+  global $wpdb;
+  $prefix = $wpdb->prefix . "shoprocket_";
+  $sqlFile = SHOPROCKET_PATH. "/sql/remove.sql";
+  $sql = str_replace('[prefix]', $prefix, file_get_contents($sqlFile));
+  $queries = explode(";\n", $sql);
+  foreach($queries as $sql) {
+    if(strlen($sql) > 5) {
+      $wpdb->query($sql);
+    }
+  }
+    printf("{\"last\": \"%s\", \"end\": true, \"percent\": \"%.2f\"}", '10', '100');
+    exit();
+}
+
+
+  public static function getSRJSON($table = 'product') {
 
     $rest = new Pest(SR_REST);
     try {
@@ -295,15 +310,15 @@ class ShoprocketProduct extends ShoprocketModelAbstract {
   
   public static function getProducts($where=null, $order=null, $limit=null) {
     global $wpdb;
-    $products = array();
+    $productlist = array();
     $product = new ShoprocketProduct();
     $products = $product->getModels($where, $order, $limit);
     foreach($products as $p) {
       if($p->showit) {
-        $products[] = $p;
+        $productlist[] = $p;
       }
     }
-    return $products;
+    return $productlist;
   }
 
   
